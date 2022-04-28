@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aerospike/aerospike-client-go/v5"
 	"github.com/hashicorp/errwrap"
@@ -23,8 +24,12 @@ type aerospikeConnectionProducer struct {
 	Username string `json:"username" structs:"username" mapstructure:"username"`
 	Password string `json:"password" structs:"password" mapstructure:"password"`
 
-	TLSCertificateKeyData []byte `json:"tls_certificate_key" structs:"-" mapstructure:"tls_certificate_key"`
-	TLSCAData             []byte `json:"tls_ca"              structs:"-" mapstructure:"tls_ca"`
+	//TLSCertificateKeyData []byte `json:"tls_certificate_key" structs:"-" mapstructure:"tls_certificate_key"`
+	TLSCertificateData []byte `json:"tls_certificate" structs:"-" mapstructure:"tls_certificate"`
+	TLSKeyData         []byte `json:"tls_key" structs:"-" mapstructure:"tls_key"`
+	TLSCAData          []byte `json:"tls_ca"              structs:"-" mapstructure:"tls_ca"`
+
+	ClientTimeout int `json:"client_timeout" structs:"client_timeout" mapstructure:"client_timeout"`
 
 	Initialized  bool
 	RawConfig    map[string]interface{}
@@ -69,9 +74,14 @@ func (c *aerospikeConnectionProducer) Init(ctx context.Context, conf map[string]
 		return nil, fmt.Errorf("password cannot be empty")
 	}
 
+	if c.ClientTimeout <= 0 {
+		c.ClientTimeout = 10
+	}
+
 	c.clientPolicy = aerospike.NewClientPolicy()
 	c.clientPolicy.User = c.Username
 	c.clientPolicy.Password = c.Password
+	c.clientPolicy.Timeout = time.Duration(c.ClientTimeout) * time.Second
 
 	c.clientPolicy.TlsConfig, err = c.getTLSConfig()
 	if err != nil {
@@ -191,10 +201,10 @@ func (c *aerospikeConnectionProducer) getTLSConfig() (*tls.Config, error) {
 		return nil, fmt.Errorf("failed to append CA to client policy")
 	}
 
-	if len(c.TLSCertificateKeyData) > 0 {
-		certificate, err := tls.X509KeyPair(c.TLSCertificateKeyData, c.TLSCertificateKeyData)
+	if len(c.TLSCertificateData) > 0 {
+		certificate, err := tls.X509KeyPair(c.TLSCertificateData, c.TLSKeyData)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load tls_certificate_key_data: %w", err)
+			return nil, fmt.Errorf("unable to load tls_certificate data: %w", err)
 		}
 
 		tlsConfig.Certificates = append(tlsConfig.Certificates, certificate)
