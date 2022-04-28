@@ -94,7 +94,7 @@ func (c *aerospikeConnectionProducer) Init(ctx context.Context, conf map[string]
 
 	if verifyConnection {
 		if _, err := c.Connection(ctx); err != nil {
-			return nil, errwrap.Wrapf("error verifying connection: {{err}}", err)
+			return nil, errwrap.Wrapf("error verifying connection: {{err}} ", err)
 		}
 
 		if !c.client.IsConnected() {
